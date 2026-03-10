@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spiral Savonius + Deflector — 3D Design</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #06080f;
+    --panel: rgba(8,18,35,0.92);
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --text: #c8e6ff;
+    --dim: #4a7090;
+    --glow: 0 0 18px rgba(0,229,255,0.4);
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Share Tech Mono', monospace; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  header { padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(0,229,255,0.2); background: rgba(0,8,20,0.95); flex-shrink: 0; }
+  header h1 { font-family: 'Orbitron', monospace; font-weight: 900; font-size: 0.95rem; letter-spacing: 0.15em; color: var(--accent); text-shadow: var(--glow); }
+  header .sub { font-size: 0.6rem; color: var(--dim); letter-spacing: 0.1em; margin-top: 2px; }
+  .badge { font-size: 0.58rem; padding: 3px 10px; border: 1px solid var(--accent); color: var(--accent); letter-spacing: 0.1em; }
+  .main { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+  canvas { flex: 1; display: block; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  .sidebar { width: 215px; flex-shrink: 0; padding: 14px 11px; background: var(--panel); border-left: 1px solid rgba(0,229,255,0.12); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+  .sg h3 { font-family: 'Orbitron', monospace; font-size: 0.5rem; color: var(--accent); letter-spacing: 0.2em; margin-bottom: 8px; padding-bottom: 3px; border-bottom: 1px solid rgba(0,229,255,0.18); }
+  .sr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; gap: 4px; }
+  .sl { font-size: 0.58rem; color: var(--dim); flex: 1; line-height: 1.4; }
+  .sv { font-size: 0.62rem; color: var(--accent3); font-weight: bold; white-space: nowrap; }
+  .btn { width: 100%; margin-bottom: 5px; padding: 6px; background: transparent; border: 1px solid rgba(0,229,255,0.3); color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 0.58rem; letter-spacing: 0.1em; cursor: pointer; transition: all 0.2s; }
+  .btn:hover { background: rgba(0,229,255,0.08); border-color: var(--accent); color: var(--accent); }
+  .btn.on { background: rgba(0,229,255,0.12); border-color: var(--accent); color: var(--accent); }
+  .slider-wrap { margin-bottom: 7px; }
+  .slider-lbl { font-size: 0.56rem; color: var(--dim); margin-bottom: 3px; display: flex; justify-content: space-between; }
+  .slider-lbl span { color: var(--accent3); }
+  input[type=range] { width: 100%; -webkit-appearance: none; height: 2px; background: rgba(0,229,255,0.18); outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 5px var(--accent); }
+  .legend { display: flex; flex-direction: column; gap: 5px; }
+  .li { display: flex; align-items: center; gap: 7px; font-size: 0.58rem; color: var(--dim); }
+  .ld { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  #infobar { padding: 5px 14px; font-size: 0.56rem; color: var(--dim); background: rgba(0,8,20,0.95); border-top: 1px solid rgba(0,229,255,0.1); letter-spacing: 0.07em; flex-shrink: 0; }
+  .scanline { position: fixed; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0, transparent 3px, rgba(0,0,0,0.03) 3px, rgba(0,0,0,0.03) 4px); z-index: 5; }
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<header>
+  <div>
+    <h1>SPIRAL SAVONIUS + DEFLECTOR</h1>
+    <div class="sub">3D ENGINEERING MODEL — H=1m · D_blade=0.5m · 8×60° DEFLECTOR BLADES</div>
+  </div>
+  <div class="badge">REV 2.0</div>
+</header>
+<div class="main">
+  <canvas id="c"></canvas>
+  <div class="sidebar">
+    <div class="sg">
+      <h3>SAVONIUS ROTOR</h3>
+      <div class="sr"><span class="sl">Height</span><span class="sv">1.0 m</span></div>
+      <div class="sr"><span class="sl">Blade Ø</span><span class="sv">0.5 m</span></div>
+      <div class="sr"><span class="sl">Rotor Ø</span><span class="sv">≈ 0.91 m</span></div>
+      <div class="sr"><span class="sl">Blades</span><span class="sv">2 (spiral)</span></div>
+      <div class="sr"><span class="sl">Spiral Twist</span><span class="sv">180°</span></div>
+      <div class="sr"><span class="sl">Overlap</span><span class="sv">15–20% D</span></div>
+      <div class="sr"><span class="sl">Overlap dist.</span><span class="sv">75–100 mm</span></div>
+    </div>
+    <div class="sg">
+      <h3>DEFLECTOR SHROUD</h3>
+      <div class="sr"><span class="sl">Deflector blades</span><span class="sv">8</span></div>
+      <div class="sr"><span class="sl">Blade angle α</span><span class="sv">60°</span></div>
+      <div class="sr"><span class="sl">Top + bottom endplate</span><span class="sv">✓</span></div>
+      <div class="sr"><span class="sl">Shroud Ø</span><span class="sv">≈ 1.1 m</span></div>
+      <div class="sr"><span class="sl">Shroud Height</span><span class="sv">1.1 m</span></div>
+      <div class="sr"><span class="sl">Type</span><span class="sv">Fixed stator</span></div>
+    </div>
+    <div class="sg">
+      <h3>LEGEND</h3>
+      <div class="legend">
+        <div class="li"><div class="ld" style="background:#00b4d8"></div>Blade A (concave face)</div>
+        <div class="li"><div class="ld" style="background:#0077b6"></div>Blade B (convex face)</div>
+        <div class="li"><div class="ld" style="background:rgba(255,107,53,0.85)"></div>Deflector blades (8×)</div>
+        <div class="li"><div class="ld" style="background:#445566"></div>Endplates (top/bottom)</div>
+        <div class="li"><div class="ld" style="background:#aaa"></div>Drive shaft</div>
+        <div class="li"><div class="ld" style="background:#39ff14;opacity:0.7"></div>Overlap zone</div>
+      </div>
+    </div>
+    <div class="sg">
+      <h3>VISIBILITY</h3>
+      <button class="btn on" id="b-rotor">ROTOR BLADES</button>
+      <button class="btn on" id="b-defl">DEFLECTOR BLADES</button>
+      <button class="btn on" id="b-plates">ENDPLATES</button>
+      <button class="btn on" id="b-shaft">SHAFT</button>
+    </div>
+    <div class="sg">
+      <h3>ANIMATION</h3>
+      <div class="slider-wrap">
+        <div class="slider-lbl">Speed <span id="sv">1.0×</span></div>
+        <input type="range" id="ss" min="0" max="5" step="0.1" value="1">
+      </div>
+      <button class="btn" id="b-pause">PAUSE</button>
+      <button class="btn" id="b-explode">EXPLODE VIEW</button>
+      <button class="btn" id="b-top">TOP VIEW</button>
+    </div>
+    <div style="margin-top:auto;padding-top:10px;border-top:1px solid rgba(0,229,255,0.12);">
+      <div style="font-size:0.56rem;color:var(--dim);line-height:1.9;">🖱 Drag — Rotate<br>Scroll — Zoom<br>Right-drag — Pan</div>
+    </div>
+  </div>
+</div>
+<div id="infobar">DRAG TO ROTATE · SCROLL TO ZOOM · RIGHT-CLICK PAN &nbsp;|&nbsp; SPIRAL SAVONIUS 2-BLADE · DEFLECTOR 8×60° · H=1m · Dblade=0.5m · OVERLAP 15–20%</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── Renderer ─────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x06080f);
+scene.fog = new THREE.FogExp2(0x06080f, 0.05);
+
+const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 100);
+camera.position.set(2.5, 1.6, 2.5);
+camera.lookAt(0, 0.5, 0);
+
+// Lighting
+scene.add(new THREE.AmbientLight(0x1a2a4a, 1.5));
+const sun = new THREE.DirectionalLight(0x88ccff, 2.0);
+sun.position.set(4, 6, 3); sun.castShadow = true;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xff7744, 0.7);
+fill.position.set(-4, 2, -3);
+scene.add(fill);
+const pt = new THREE.PointLight(0x00e5ff, 1.5, 6);
+pt.position.set(0, 1.5, 0);
+scene.add(pt);
+
+// Grid floor
+const grid = new THREE.GridHelper(8, 40, 0x0a2040, 0x060f1a);
+grid.position.y = -0.01;
+scene.add(grid);
+
+// ── Parameters ────────────────────────────────────────────────────
+const H      = 1.0;            // rotor height
+const D      = 0.5;            // blade semicircle diameter
+const R      = D / 2;          // blade radius = 0.25 m
+const OV     = 0.175 * D;      // overlap = 17.5% → ~0.0875 m
+// Rotor outer radius: two semicircles side-by-side minus overlap
+const rotorR = D - OV / 2;     // ≈ 0.456 m  (half rotor diameter)
+const TWIST  = Math.PI;        // 180° spiral
+const VSEG   = 80;             // vertical segments
+const PSEG   = 40;             // profile segments
+
+// Deflector params
+const DEFL_N      = 8;
+const DEFL_ANGLE  = 60 * Math.PI / 180;   // 60° to radial
+const DEFL_R      = rotorR + 0.17;        // inner radius of deflector ring
+const DEFL_H      = H + 0.12;            // slightly taller than rotor
+const PLATE_R     = DEFL_R + 0.22;       // endplate radius
+
+// ── Groups ────────────────────────────────────────────────────────
+const rotorGrp   = new THREE.Group();
+const deflGrp    = new THREE.Group();
+const platesGrp  = new THREE.Group();
+const shaftGrp   = new THREE.Group();
+scene.add(rotorGrp);
+scene.add(deflGrp);
+scene.add(platesGrp);
+scene.add(shaftGrp);
+
+// ── Materials ─────────────────────────────────────────────────────
+const mBlade1 = new THREE.MeshPhongMaterial({ color:0x00b4d8, emissive:0x003a4a, specular:0x55eeff, shininess:90, side:THREE.DoubleSide, transparent:true, opacity:0.93 });
+const mBlade2 = new THREE.MeshPhongMaterial({ color:0x0077b6, emissive:0x001e30, specular:0x33aadd, shininess:90, side:THREE.DoubleSide, transparent:true, opacity:0.93 });
+const mDefl   = new THREE.MeshPhongMaterial({ color:0xe05520, emissive:0x3a1000, specular:0xffaa77, shininess:70, side:THREE.DoubleSide, transparent:true, opacity:0.88 });
+const mPlate  = new THREE.MeshPhongMaterial({ color:0x2a3a4a, emissive:0x080e18, specular:0x6688aa, shininess:50, transparent:true, opacity:0.70 });
+const mShaft  = new THREE.MeshPhongMaterial({ color:0x99aaaa, emissive:0x111111, specular:0xffffff, shininess:130 });
+const mOvLine = new THREE.LineBasicMaterial({ color:0x39ff14, linewidth:1 });
+
+// ── Spiral Savonius Blade ─────────────────────────────────────────
+function buildBlade(phase, mat) {
+  const pos = [], idx = [], uv = [];
+  for (let i = 0; i <= VSEG; i++) {
+    const t     = i / VSEG;
+    const y     = t * H;
+    const twist = t * TWIST + phase;
+    for (let j = 0; j <= PSEG; j++) {
+      const theta = (j / PSEG) * Math.PI;          // 0→π semicircle
+      const lx = R * Math.cos(theta);               // semicircle local x
+      const lz = R * Math.sin(theta);               // semicircle local z
+      // Center of this blade's semicircle sits at (rotorR - R) from axis
+      const cx = rotorR - R;
+      const wx = (cx + lx) * Math.cos(twist) - lz * Math.sin(twist);
+      const wz = (cx + lx) * Math.sin(twist) + lz * Math.cos(twist);
+      pos.push(wx, y, wz);
+      uv.push(j / PSEG, t);
+    }
+  }
+  const cols = PSEG + 1;
+  for (let i = 0; i < VSEG; i++) {
+    for (let j = 0; j < PSEG; j++) {
+      const a = i * cols + j, b = a + 1, c = (i+1)*cols+j, d = c+1;
+      idx.push(a,c,b, b,c,d);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv',       new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = true;
+  return m;
+}
+
+const blade1 = buildBlade(0,          mBlade1);
+const blade2 = buildBlade(Math.PI,    mBlade2);
+rotorGrp.add(blade1, blade2);
+
+// Overlap indicator line
+(function() {
+  const verts = [];
+  for (let i = 0; i <= VSEG; i++) {
+    const t = i / VSEG;
+    const y = t * H;
+    const twist = t * TWIST;
+    verts.push(Math.cos(twist) * OV/2, y, Math.sin(twist) * OV/2);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  rotorGrp.add(new THREE.Line(geo, mOvLine));
+})();
+
+// ── Shaft ─────────────────────────────────────────────────────────
+const shaft = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.022, 0.022, H + 0.36, 16),
+  mShaft
+);
+shaft.position.y = H / 2;
+shaftGrp.add(shaft);
+
+// ── Endplates (top + bottom of deflector) ────────────────────────
+// These are the large flat discs like in the reference image
+[0, DEFL_H].forEach((y, idx2) => {
+  // Full disc endplate
+  const geo = new THREE.CylinderGeometry(PLATE_R, PLATE_R, 0.025, 64);
+  const mesh = new THREE.Mesh(geo, mPlate);
+  mesh.position.y = y;
+  mesh.castShadow = true;
+  platesGrp.add(mesh);
+
+  // Ring edge accent
+  const ringGeo = new THREE.TorusGeometry(PLATE_R, 0.01, 8, 64);
+  const ring = new THREE.Mesh(ringGeo, new THREE.MeshPhongMaterial({ color:0x446688, emissive:0x112233 }));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = y;
+  platesGrp.add(ring);
+
+  // Inner hole ring
+  const iGeo = new THREE.TorusGeometry(DEFL_R, 0.008, 8, 64);
+  const iRing = new THREE.Mesh(iGeo, new THREE.MeshPhongMaterial({ color:0x334455, emissive:0x0a0f18 }));
+  iRing.rotation.x = Math.PI / 2;
+  iRing.position.y = y;
+  platesGrp.add(iRing);
+});
+
+// ── Deflector Blades ──────────────────────────────────────────────
+// Each blade is a flat rectangle positioned at the outer edge of the rotor,
+// angled at 60° to the radial direction (tangential-ish), like in the reference.
+// The blades span from top endplate to bottom endplate.
+
+const BLADE_CHORD = 0.24;   // radial chord length of each deflector blade
+
+for (let i = 0; i < DEFL_N; i++) {
+  const azimuth = (i / DEFL_N) * Math.PI * 2;
+
+  // Build a flat rectangle (chord × height)
+  const geo = new THREE.PlaneGeometry(BLADE_CHORD, DEFL_H, 1, 8);
+  const mesh = new THREE.Mesh(geo, mDefl);
+  mesh.castShadow = true;
+
+  // The blade sits at radius DEFL_R, extending outward by BLADE_CHORD
+  // Center of blade at DEFL_R + BLADE_CHORD/2 radially
+  const midR = DEFL_R + BLADE_CHORD / 2;
+
+  // Rotate to face tangentially then tilt by (90° - 60°) = 30° inward
+  // In reference: blades are like venetian blinds angled at 60° to radial
+  mesh.position.set(midR, DEFL_H / 2, 0);
+  mesh.rotation.y = -(Math.PI / 2 - DEFL_ANGLE); // tilt 30° from tangential → 60° from radial
+
+  const grp = new THREE.Group();
+  grp.add(mesh);
+  grp.rotation.y = azimuth;
+  deflGrp.add(grp);
+
+  // Leading edge accent line
+  const edgeGeo = new THREE.BufferGeometry();
+  const ex = DEFL_R * Math.cos(azimuth), ez = DEFL_R * Math.sin(azimuth);
+  edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+    ex, 0, ez,
+    ex, DEFL_H, ez
+  ], 3));
+  deflGrp.add(new THREE.Line(edgeGeo, new THREE.LineBasicMaterial({ color:0xff8855, transparent:true, opacity:0.5 })));
+}
+
+// Outer perimeter ring connecting blade tips
+const outerR = DEFL_R + BLADE_CHORD;
+['bottom','top'].forEach((_, ii) => {
+  const y = ii === 0 ? 0.012 : DEFL_H - 0.012;
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(outerR, 0.012, 8, 96),
+    new THREE.MeshPhongMaterial({ color:0xcc4422, emissive:0x330e06 })
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = y;
+  deflGrp.add(ring);
+});
+
+// ── Orbit Controls ────────────────────────────────────────────────
+let drag = false, rightDrag = false, px = 0, py = 0;
+const sph = { theta: 0.7, phi: 1.05, r: 3.5 };
+const tgt = new THREE.Vector3(0, 0.55, 0);
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('mousedown', e => { drag = true; rightDrag = e.button===2; px=e.clientX; py=e.clientY; });
+window.addEventListener('mouseup', () => drag = false);
+window.addEventListener('mousemove', e => {
+  if (!drag) return;
+  const dx = e.clientX-px, dy = e.clientY-py; px=e.clientX; py=e.clientY;
+  if (!rightDrag) {
+    sph.theta -= dx*0.007;
+    sph.phi = Math.max(0.05, Math.min(Math.PI-0.05, sph.phi + dy*0.007));
+  } else {
+    const r = new THREE.Vector3().crossVectors(camera.getWorldDirection(new THREE.Vector3()), camera.up).normalize();
+    tgt.addScaledVector(r, -dx*0.003);
+    tgt.y += dy*0.003;
+  }
+});
+canvas.addEventListener('wheel', e => { sph.r = Math.max(0.5, Math.min(12, sph.r + e.deltaY*0.005)); }, {passive:true});
+
+// Touch
+let ltd = 0;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length===1){ drag=true; px=e.touches[0].clientX; py=e.touches[0].clientY; }
+  if (e.touches.length===2) ltd = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+});
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length===1 && drag) {
+    const dx=e.touches[0].clientX-px, dy=e.touches[0].clientY-py; px=e.touches[0].clientX; py=e.touches[0].clientY;
+    sph.theta-=dx*0.007; sph.phi=Math.max(0.05,Math.min(Math.PI-0.05,sph.phi+dy*0.007));
+  }
+  if (e.touches.length===2) {
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    sph.r=Math.max(0.5,Math.min(12,sph.r-(d-ltd)*0.01)); ltd=d;
+  }
+},{passive:true});
+canvas.addEventListener('touchend',()=>drag=false);
+
+// ── UI Controls ──────────────────────────────────────────────────
+let rotSpeed=1, paused=false, exploding=false, explodeT=0;
+let topView=false;
+
+const btn = id => document.getElementById(id);
+
+btn('b-rotor').addEventListener('click',function(){ this.classList.toggle('on'); rotorGrp.visible=this.classList.contains('on'); });
+btn('b-defl').addEventListener('click',function(){ this.classList.toggle('on'); deflGrp.visible=this.classList.contains('on'); });
+btn('b-plates').addEventListener('click',function(){ this.classList.toggle('on'); platesGrp.visible=this.classList.contains('on'); });
+btn('b-shaft').addEventListener('click',function(){ this.classList.toggle('on'); shaftGrp.visible=this.classList.contains('on'); });
+
+const sl=btn('ss'), svEl=btn('sv');
+sl.addEventListener('input',()=>{ rotSpeed=parseFloat(sl.value); svEl.textContent=rotSpeed.toFixed(1)+'×'; });
+
+btn('b-pause').addEventListener('click',function(){ paused=!paused; this.textContent=paused?'RESUME':'PAUSE'; this.classList.toggle('on',paused); });
+btn('b-explode').addEventListener('click',function(){ exploding=!exploding; this.classList.toggle('on',exploding); this.textContent=exploding?'COLLAPSE VIEW':'EXPLODE VIEW'; });
+
+btn('b-top').addEventListener('click',function(){
+  topView=!topView;
+  this.classList.toggle('on',topView);
+  if(topView){ sph.phi=0.08; sph.r=3.0; tgt.set(0,0.55,0); }
+  else { sph.phi=1.05; sph.r=3.5; }
+});
+
+// ── Resize ────────────────────────────────────────────────────────
+function resize(){
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',resize); resize();
+
+// ── Animate ──────────────────────────────────────────────────────
+let t=0;
+function animate(){
+  requestAnimationFrame(animate);
+  if(!paused) { t += 0.007*rotSpeed; rotorGrp.rotation.y=-t; shaftGrp.rotation.y=-t; }
+
+  // Explode
+  const te = exploding?1:0;
+  explodeT += (te-explodeT)*0.06;
+  deflGrp.scale.x = deflGrp.scale.z = 1 + explodeT*0.45;
+  platesGrp.scale.x = platesGrp.scale.z = 1 + explodeT*0.45;
+  blade1.position.x = -explodeT*0.28;
+  blade2.position.x =  explodeT*0.28;
+
+  // Camera
+  const sp = Math.sin(sph.phi);
+  camera.position.set(
+    tgt.x + sph.r*sp*Math.sin(sph.theta),
+    tgt.y + sph.r*Math.cos(sph.phi),
+    tgt.z + sph.r*sp*Math.cos(sph.theta)
+  );
+  camera.lookAt(tgt);
+
+  pt.intensity = 1.2 + 0.4*Math.sin(t*2.5);
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
